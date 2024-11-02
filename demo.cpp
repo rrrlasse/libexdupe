@@ -8,7 +8,7 @@
 #define fseeko64 _fseeki64
 #endif
 
-#include "binding.hpp"
+#include "libexdupe/binding.hpp"
 
 using namespace std;
 
