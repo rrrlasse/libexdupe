@@ -13,8 +13,7 @@
 #ifdef NDEBUG
 void check(bool b) {
     if(!b) {
-        std::cerr << "error";
-        abort();
+        throw "error";
     }
 }
 #else
@@ -26,9 +25,15 @@ namespace compressor {
         std::vector<char> hash_table;
         std::vector<std::vector<char>> in;
         std::vector<std::vector<char>> out;
+        std::vector<char> flushed;
         size_t ptr = 0;
         int threads;
     }
+
+    struct result {
+        char* result;
+        size_t length;
+    };
 
     void init(int threads, size_t hash_size, int level) {
         check(threads >= 1);
@@ -45,37 +50,59 @@ namespace compressor {
 
     void uninit() {
         dup_uninit_compression();
-    }
-
-    uint64_t prev = 0;
-    void compress(const std::vector<char>& src, std::vector<char>& dst) {
-        using namespace detail;        
-        char* compressed;
-        std::vector<char> vec;
-        in[ptr] = src;
-        out[ptr].resize(src.size() + 128 * 1024);
-        size_t ret = dup_compress(in[ptr].data(), out[ptr].data(), src.size(), 0, false, &compressed, 0);
-        ptr = (ptr + 1) % in.size();
-        dst = { compressed, compressed + ret };
+        detail::flushed.clear();
+        detail::flushed.shrink_to_fit();
     }
 
     void flush(std::vector<char>& dst) {
         using namespace detail;
         char* res;
         size_t len;
-
         dst.clear();
         do {
             len = dup_flush_pend_block(0, &res, 0);
             dst.insert(dst.end(), res, res + len);
         } while (len > 0);
     }
+
+    char* get_buffer(size_t reserve) {
+        using namespace detail;
+        if(in[ptr].size() < reserve) {
+            in[ptr].resize(reserve);
+        }
+        if (out[ptr].size() < reserve + 128 * 1024) {
+            out[ptr].resize(reserve + 128 * 1024);
+        }
+        return in[ptr].data();
+    }
+    
+    result compress(char* source, size_t length) {
+        using namespace detail;
+        char* compressed;
+        size_t ret = dup_compress(source, out[ptr].data(), length, 0, false, &compressed, 0);
+        ptr = (ptr + 1) % in.size();
+        return { compressed, ret };
+    }
+
+    result flush() {
+        using namespace detail;
+        char* res;
+        size_t len;
+
+        do {
+            len = dup_flush_pend_block(0, &res, 0);
+            flushed.insert(flushed.end(), res, res + len);
+        } while (len > 0);
+
+        return { flushed.data(), flushed.size() };
+    }
+
 }
 
 namespace decompressor {
     size_t header = DUP_HEADER_LEN;
 
-    struct Reference {
+    struct reference {
         size_t length;
         size_t position;
     };
@@ -109,12 +136,12 @@ namespace decompressor {
         return r;
     }
 
-    Reference get_reference(const std::vector<char>& src) {
+    reference get_reference(const std::vector<char>& src) {
         check(is_reference(src));
         uint64_t pay;
         size_t len;
         int r = dup_packet_info(src.data(), &len, &pay);
         check(r);
-        return Reference(len, pay);
+        return reference(len, pay);
     }
 }

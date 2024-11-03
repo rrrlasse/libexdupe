@@ -26,22 +26,20 @@ size_t rd(vector<char>& dst, size_t len, FILE* f, size_t offset, bool exact) {
 // threads: more is not always faster
 void compress(size_t hash_size, int threads, size_t chunk_size, int level) {
     check(level >= 0 && level <= 3);
-
-    vector<char> in;
-    vector<char> out;
     compressor::init(threads, hash_size, level);
 
     while (std::cin.peek() != EOF) {
-        rd(in, chunk_size, stdin, 0, false);
-        compressor::compress(in, out);
-        fwrite(out.data(), 1, out.size(), stdout);
+        char* in = compressor::get_buffer(chunk_size);
+        size_t len = fread(in, 1, chunk_size, stdin);
+        compressor::result r = compressor::compress(in, len);
+        fwrite(r.result, 1, r.length, stdout);
     }
 
-    compressor::flush(out);
-    fwrite(out.data(), 1, out.size(), stdout);
-    fflush(stdout); // required
+    compressor::result r = compressor::flush();
+    fwrite(r.result, 1, r.length, stdout);
+    fflush(stdout);
     compressor::uninit();
-} 
+}
 
 
 // Read consecutive packets. A packet can either contain a block of user payload, or it can be
@@ -53,14 +51,13 @@ void decompress(string outfile) {
     decompressor::init();
     FILE* ofile = fopen(outfile.c_str(), "wb+");
 
-
     while (std::cin.peek() != EOF) {
         size_t len = rd(in, decompressor::header, stdin, 0, true);
         size_t packet = decompressor::packet_size(in);
         len = rd(in, packet - decompressor::header, stdin, decompressor::header, true);
 
         if (decompressor::is_reference(in)) {
-            decompressor::Reference r = decompressor::get_reference(in);
+            decompressor::reference r = decompressor::get_reference(in);
             fseeko64(ofile, r.position, SEEK_SET);
             rd(out, r.length, ofile, 0, true);
             fseeko64(ofile, 0, SEEK_END);
@@ -87,7 +84,7 @@ int main(int argc, char *argv[]) {
         decompress(argv[2]);
     }
     else if(argc == 2 && std::string(argv[1]) == "-c") {
-        compress(128 * 1024 * 1024ull, 8, 1024 * 1024ull, 1);
+        compress(60 * 1024 * 1024ull, 8, 1024 * 1024ull, 1);
     }
     else {
         cerr << "demo -c < input_file > compressed_file"

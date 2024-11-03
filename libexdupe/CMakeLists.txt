@@ -39,4 +39,3 @@ target_link_libraries(libexdupe PUBLIC xxhash)
 if (MSVC)
 	target_link_libraries(libexdupe PRIVATE libpthreadVC3)
 endif(MSVC)
-
