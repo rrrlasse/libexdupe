@@ -8,14 +8,14 @@
 #define fseeko64 _fseeki64
 #endif
 
-#include "libexdupe/binding.hpp"
+#include "libexdupe/libexdupe_binding.hpp"
 
 using namespace std;
 
 size_t rd(vector<char>& dst, size_t len, FILE* f, size_t offset, bool exact) {
     dst.resize(len + offset);
     size_t r = fread(dst.data() + offset, 1, len, f);
-    check(!exact || r == len);
+    libexdupe_assert(!exact || r == len);
     dst.resize(r);
     return r;
 }
@@ -25,13 +25,13 @@ size_t rd(vector<char>& dst, size_t len, FILE* f, size_t offset, bool exact) {
 // level: 1...3 means LZ compression is done after deduplication, 0 means no LZ
 // threads: more is not always faster
 void compress(size_t hash_size, int threads, size_t chunk_size, int level) {
-    check(level >= 0 && level <= 3);
+    libexdupe_assert(level >= 0 && level <= 3);
     compressor::init(threads, hash_size, level);
 
     while (std::cin.peek() != EOF) {
         char* in = compressor::get_buffer(chunk_size);
         size_t len = fread(in, 1, chunk_size, stdin);
-        compressor::result r = compressor::compress(in, len);
+        compressor::result r = compressor::compress(len);
         fwrite(r.result, 1, r.length, stdout);
     }
 

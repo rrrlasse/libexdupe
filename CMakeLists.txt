@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.6)
 set(CMAKE_CXX_STANDARD 20)
 
 project (demo)
-add_executable(demo demo.cpp libexdupe/binding.hpp)
+add_executable(demo demo.cpp libexdupe/libexdupe_binding.hpp)
 target_link_libraries(demo PRIVATE libexdupe)
 
 if (MSVC)

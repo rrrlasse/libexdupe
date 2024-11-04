@@ -10,15 +10,12 @@
 
 #include "libexdupe.h"
 
-#ifdef NDEBUG
-void check(bool b) {
-    if(!b) {
-        throw "error";
-    }
+// Customize your own error handling here
+#define libexdupe_assert(b) if(!(b)) { \
+    std::cerr << "libexdupe_assert failed: " << #b << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
+    abort(); \
 }
-#else
-#define check(x) assert(x)
-#endif
+
 
 namespace compressor {
     namespace detail {
@@ -36,9 +33,9 @@ namespace compressor {
     };
 
     void init(int threads, size_t hash_size, int level) {
-        check(threads >= 1);
-        check(hash_size >= 1024 * 1024);
-        check(level >= 0 && level <= 3);
+        libexdupe_assert(threads >= 1);
+        libexdupe_assert(hash_size >= 1024 * 1024);
+        libexdupe_assert(level >= 0 && level <= 3);
         
         using namespace detail;
         detail::threads = threads;
@@ -76,10 +73,11 @@ namespace compressor {
         return in[ptr].data();
     }
     
-    result compress(char* source, size_t length) {
+    result compress(size_t length) {
         using namespace detail;
+        libexdupe_assert(length <= in[ptr].size());
         char* compressed;
-        size_t ret = dup_compress(source, out[ptr].data(), length, 0, false, &compressed, 0);
+        size_t ret = dup_compress(in[ptr].data(), out[ptr].data(), length, 0, false, &compressed, 0);
         ptr = (ptr + 1) % in.size();
         return { compressed, ret };
     }
@@ -117,31 +115,31 @@ namespace decompressor {
 
     bool is_reference(const std::vector<char>& src) {
         int r = dup_packet_info(src.data(), 0, 0);
-        check(r == DUP_REFERENCE || r == DUP_LITERAL);
+        libexdupe_assert(r == DUP_REFERENCE || r == DUP_LITERAL);
         return r == DUP_REFERENCE;
     }
 
     void decompress_literals(const std::vector<char>& src, std::vector<char>& dst) {
-        check(!is_reference(src));
+        libexdupe_assert(!is_reference(src));
         uint64_t pay;
         size_t len = dup_size_decompressed(src.data());
         dst.resize(len);
         int r = dup_decompress(src.data(), dst.data(), &len, &pay);
-        check(r == 0 || r == 1);
+        libexdupe_assert(r == 0 || r == 1);
     }
 
     size_t packet_size(const std::vector<char>& src) {
         size_t r = dup_size_compressed(src.data());
-        check(r);
+        libexdupe_assert(r);
         return r;
     }
 
     reference get_reference(const std::vector<char>& src) {
-        check(is_reference(src));
+        libexdupe_assert(is_reference(src));
         uint64_t pay;
         size_t len;
         int r = dup_packet_info(src.data(), &len, &pay);
-        check(r);
+        libexdupe_assert(r);
         return reference(len, pay);
     }
 }
