@@ -16,8 +16,11 @@
     abort(); \
 }
 
+namespace libexdupe {
+    size_t m = 1 << 20;
+    size_t k = 1 << 10;
 
-namespace compressor {
+    namespace compressor {
     namespace detail {
         std::vector<char> hash_table;
         std::vector<std::vector<char>> in;
@@ -34,15 +37,15 @@ namespace compressor {
 
     void init(int threads, size_t hash_size, int level) {
         libexdupe_assert(threads >= 1);
-        libexdupe_assert(hash_size >= 1024 * 1024);
+        libexdupe_assert(hash_size >= m);
         libexdupe_assert(level >= 0 && level <= 3);
         
         using namespace detail;
         detail::threads = threads;
         hash_table.resize(hash_size);
-        in.resize(threads + 10);
-        out.resize(threads + 10);
-        dup_init_compression(128 * 1024, 4 * 1024, hash_size, threads, hash_table.data(), level, false, 0, 0);
+        in.resize(threads + 1);
+        out.resize(threads + 1);
+        dup_init_compression(128 * k, 4 * k, hash_size, threads, hash_table.data(), level, false, 0, 0);
     }
 
     void uninit() {
@@ -57,7 +60,7 @@ namespace compressor {
         size_t len;
         dst.clear();
         do {
-            len = dup_flush_pend_block(0, &res, 0);
+            len = dup_flush_pend_block(nullptr, &res, nullptr);
             dst.insert(dst.end(), res, res + len);
         } while (len > 0);
     }
@@ -67,8 +70,8 @@ namespace compressor {
         if(in[ptr].size() < reserve) {
             in[ptr].resize(reserve);
         }
-        if (out[ptr].size() < reserve + 128 * 1024) {
-            out[ptr].resize(reserve + 128 * 1024);
+        if (out[ptr].size() < reserve + 128 * k) {
+            out[ptr].resize(reserve + 128 * k);
         }
         return in[ptr].data();
     }
@@ -77,7 +80,7 @@ namespace compressor {
         using namespace detail;
         libexdupe_assert(length <= in[ptr].size());
         char* compressed;
-        size_t ret = dup_compress(in[ptr].data(), out[ptr].data(), length, 0, false, &compressed, 0);
+        size_t ret = dup_compress(in[ptr].data(), out[ptr].data(), length, nullptr, false, &compressed, nullptr);
         ptr = (ptr + 1) % in.size();
         return { compressed, ret };
     }
@@ -88,7 +91,7 @@ namespace compressor {
         size_t len;
 
         do {
-            len = dup_flush_pend_block(0, &res, 0);
+            len = dup_flush_pend_block(0, &res, nullptr);
             flushed.insert(flushed.end(), res, res + len);
         } while (len > 0);
 
@@ -114,7 +117,7 @@ namespace decompressor {
     }
 
     bool is_reference(const std::vector<char>& src) {
-        int r = dup_packet_info(src.data(), 0, 0);
+        int r = dup_packet_info(src.data(), nullptr, nullptr);
         libexdupe_assert(r == DUP_REFERENCE || r == DUP_LITERAL);
         return r == DUP_REFERENCE;
     }
@@ -142,4 +145,5 @@ namespace decompressor {
         libexdupe_assert(r);
         return reference(len, pay);
     }
+}
 }

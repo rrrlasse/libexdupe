@@ -11,6 +11,7 @@
 #include "libexdupe/libexdupe_binding.hpp"
 
 using namespace std;
+using namespace libexdupe;
 
 size_t rd(vector<char>& dst, size_t len, FILE* f, size_t offset, bool exact) {
     dst.resize(len + offset);
@@ -21,11 +22,10 @@ size_t rd(vector<char>& dst, size_t len, FILE* f, size_t offset, bool exact) {
 }
 
 
-// hash_size: Set to around 1 MB per 100 MB of input data
+// hash_size: Set to around 1 GB per 50 GB of input data
 // level: 1...3 means LZ compression is done after deduplication, 0 means no LZ
 // threads: more is not always faster
 void compress(size_t hash_size, int threads, size_t chunk_size, int level) {
-    libexdupe_assert(level >= 0 && level <= 3);
     compressor::init(threads, hash_size, level);
 
     while (std::cin.peek() != EOF) {
@@ -43,7 +43,7 @@ void compress(size_t hash_size, int threads, size_t chunk_size, int level) {
 
 
 // Read consecutive packets. A packet can either contain a block of user payload, or it can be
-// a reference that into past written data (i.e. we are at a duplicated sequence of data).
+// a reference that points into past written data (i.e. we are at a duplicated sequence of data).
 void decompress(string outfile) {
     vector<char> in;
     vector<char> out;

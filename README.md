@@ -2,7 +2,7 @@ libexdupe is a compression library that also performs data deduplication.
 
 It finds identical sequences of data as small as 4 KB across terabytes of input data at a speed of **5 gigabyte per second** (in-memory, 4 threads, level 0).
 
-It has a simple C++ interface - all you need to compress from stdin to stdout is following:
+It has a simple C++ interface. All you need to compress from stdin to stdout is following:
 ```
 int main() {
     size_t mb = 1 << 20;
@@ -11,7 +11,7 @@ int main() {
     while (std::cin.peek() != EOF) {
         char* in = compressor::get_buffer(mb);
         size_t len = fread(in, 1, mb, stdin);
-        compressor::result r = compressor::compress(in, len);
+        compressor::result r = compressor::compress(len);
         fwrite(r.result, 1, r.length, stdout);
     }
 
@@ -21,7 +21,7 @@ int main() {
     compressor::uninit();
 }
 ```
-It's currently just a preview version - use for testing only. You can use tar for that:
+It's currently an early preview version - use for testing only. You can try it with tar:
 
 ```tar cvf - all_my_files | ./demo -c > archive.demo```
 
